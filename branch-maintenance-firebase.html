@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نظام صيانة الفروع</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#fffcf0;--c:#fff;--t:#26210f;--m:#7d7250;--p:#f5b800;--p2:#ffd84d;--pt:#2a2200;--b:#f1e5b0;--ok:#2e7d32;--no:#c62828;--wr:#e69500;--sh:0 2px 10px rgba(0,0,0,.06)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#171615;--c:#222120;--t:#eee;--m:#a39a78;--b:#3a3520;--sh:none}}
+:root[data-theme=dark]{--bg:#171615;--c:#222120;--t:#eee;--m:#a39a78;--b:#3a3520;--sh:none}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--t);font-family:Tahoma,"Segoe UI",Arial,sans-serif;padding:14px;max-width:820px;margin-inline:auto;min-height:100vh}
+.hero{background:linear-gradient(135deg,var(--p),var(--p2));color:var(--pt);border-radius:16px;padding:18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:var(--sh)}
+.hero h1{margin:0;font-size:19px}.hero small{opacity:.85;font-size:12px;display:block;margin-top:3px}
+.hero button{background:rgba(255,255,255,.65);border:1px solid rgba(0,0,0,.12);color:var(--pt)}
+h3{margin:14px 0 8px;font-size:15px}
+.card{background:var(--c);border:1px solid var(--b);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--sh)}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--p);color:var(--pt);font-weight:bold;transition:.15s}
+button.ok,button.no{color:#fff}.tag{color:#fff}
+button:active{transform:scale(.97)}button:disabled{opacity:.5}
+button.g{background:transparent;color:var(--t);border:1px solid var(--b)}button.ok{background:var(--ok)}button.no{background:var(--no)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row{display:flex;gap:8px}.row>*{flex:1}
+input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid var(--b);border-radius:10px;background:var(--bg);color:var(--t);margin:5px 0}
+img.p{max-width:100%;max-height:220px;border-radius:10px;margin-top:6px;display:block;cursor:zoom-in}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;color:#fff;white-space:nowrap}
+.w{background:var(--wr)}.d{background:var(--ok)}.n{background:var(--no)}
+.pri{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid currentColor;margin-inline-start:6px}
+.p-h{color:var(--no)}.p-m{color:var(--wr)}.p-l{color:var(--m)}
+.m{color:var(--m);font-size:13px}.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}.tabs button{flex:1;white-space:nowrap;padding:9px 10px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.st{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px 4px;text-align:center}
+.st b{display:block;font-size:22px}.st span{font-size:12px;color:var(--m)}
+.fix{border-top:1px dashed var(--b);margin-top:8px;padding-top:8px}
+.foot{text-align:center;font-size:10px;color:var(--m);margin:22px 0 10px;letter-spacing:.3px}
+#toast{background:var(--pt)!important;color:#ffd84d!important}
+.ins{border-inline-start:4px solid var(--p);padding:8px 10px;margin:6px 0;background:var(--bg);border-radius:8px;font-size:14px}
+.bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px}.bar i{display:block;height:10px;border-radius:99px;background:linear-gradient(90deg,var(--p),var(--p2));min-width:4px}
+.late{background:var(--no)!important}.ai{white-space:pre-wrap;background:var(--bg);border:1px dashed var(--p);border-radius:10px;padding:10px;margin-top:8px;font-size:14px;line-height:1.7}
+#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(80px);background:#222;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:.3s;z-index:9}
+#toast.on{transform:translateX(-50%);opacity:1}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:10}#lb img{max-width:95%;max-height:92%;border-radius:8px}
+body{font-size:15px;line-height:1.6}
+.card{animation:up .35s ease both;border-inline-start:5px solid var(--b)}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card.s-pending{border-inline-start-color:var(--wr)}.card.s-done{border-inline-start-color:var(--ok)}.card.s-notdone{border-inline-start-color:var(--no)}
+.chip{display:inline-block;background:var(--bg);border:1px solid var(--b);border-radius:99px;padding:2px 10px;font-size:12px;margin-top:6px}
+.steps{display:flex;margin:10px 0 4px;font-size:11px;color:var(--m)}.steps div{flex:1;text-align:center}
+.steps div:before{content:"";display:block;width:16px;height:16px;border-radius:50%;background:var(--b);margin:0 auto 3px}
+.steps .on:before{background:var(--p)}.steps .on{color:var(--t);font-weight:bold}.steps .ok:before{background:var(--ok)}.steps .ok{color:var(--t);font-weight:bold}.steps .no:before{background:var(--no)}.steps .no{color:var(--t);font-weight:bold}
+.empty{text-align:center;padding:30px 10px;color:var(--m)}.empty b{display:block;font-size:34px}.empty span{font-size:13px}
+.guide{display:flex;gap:8px;margin-bottom:12px}.guide div{flex:1;text-align:center;font-size:12px;background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px 4px}.guide span{display:block;font-size:24px}
+button:focus-visible,input:focus,textarea:focus,select:focus{outline:2px solid var(--p);outline-offset:1px}
+.tabs button b{background:rgba(0,0,0,.1);border-radius:99px;padding:0 7px;margin-inline-start:4px;font-size:12px}
+.tabs button:not(.g) b{background:rgba(0,0,0,.18)}
+.dash{display:flex;gap:14px;align-items:center}.ringw{position:relative;width:110px;height:110px;flex:none}.ringw svg{transform:rotate(-90deg)}.ringw div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}
+.heat{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px}
+.tile{border-radius:12px;padding:8px 2px;text-align:center;font-size:11px;cursor:pointer;border:2px solid;transition:.15s;line-height:1.3}.tile b{display:block;font-size:17px}.tile:active{transform:scale(.95)}
+.tile.okk{background:rgba(46,125,50,.13);border-color:rgba(46,125,50,.45)}.tile.warn{background:rgba(245,184,0,.25);border-color:var(--p)}.tile.late{background:rgba(198,40,40,.14);border-color:var(--no);animation:pl 1.6s infinite}
+.tile.sel{outline:3px solid var(--t);outline-offset:1px}@keyframes pl{50%{box-shadow:0 0 0 5px rgba(198,40,40,.18)}}
+.live{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2e7d32;margin-inline-start:4px;animation:pl2 1.5s infinite}@keyframes pl2{50%{box-shadow:0 0 0 6px rgba(46,125,50,.2)}}
+.wk{display:flex;gap:6px;align-items:flex-end;height:100px;margin-top:10px}.wk div{flex:1;text-align:center;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px}.wk i{width:70%;border-radius:8px 8px 3px 3px;background:linear-gradient(0deg,var(--p),var(--p2))}.wk span{color:var(--m)}
+.urg{box-shadow:0 0 0 2px rgba(198,40,40,.35)!important}
+@media(max-width:420px){.stats{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<div id="app"></div>
+<div class="foot">ابتكار وتطوير : عبدالإله فقيه</div>
+<div id="toast"></div><div id="lb" onclick="this.style.display='none'"><img id="lbi"></div>
+<div id="rep" style="position:fixed;left:-9999px;top:0;width:700px;background:#fff;color:#000;padding:30px;direction:rtl;font-family:Tahoma,Arial"></div>
+<script>
+const BR=["كبده الرواد 1","كبده الرواد 2","كبده الرواد 3","كبده الرواد 4","كبده الرواد 5","كبده الرواد 6","كبده الرواد 7","كبده الروابي","حمسة الشيف","توب كبده"];
+const CAT=["كهرباء","سباكة","تكييف وتبريد","معدات المطبخ","نجارة وأثاث","نظافة ومكافحة","أخرى"];
+const CI={"كهرباء":"⚡","سباكة":"🚰","تكييف وتبريد":"❄️","معدات المطبخ":"🍳","نجارة وأثاث":"🪑","نظافة ومكافحة":"🧹","أخرى":"🔩"};
+const PRI={h:["عاجل","p-h"],m:["عادي","p-m"],l:["منخفض","p-l"]};
+const PASS="As@12345";
+let db=null,col=null,reqs=[],who=null,filter="all",bfilter="",q="",busy=false;
+const $=id=>document.getElementById(id);
+const fmt=t=>t?new Date(t).toLocaleString("ar-SA",{dateStyle:"medium",timeStyle:"short"}):"—";
+const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeImg=u=>/^data:image\//.test(u||"")?u:"";
+const ST={pending:["قيد الانتظار","w"],done:["تمت الصيانة","d"],notdone:["لم تتم الصيانة","n"]};
+function dur(ms){if(!ms||ms<0)return"—";const m=Math.round(ms/60000);if(m<60)return m+" دقيقة";const h=Math.floor(m/60);if(h<24)return h+" ساعة";return Math.floor(h/24)+" يوم"}
+const KW={"كهرباء":["كهرب","فيوز","قاطع","ماس","إنارة","اضاءة","إضاءة","لمبة","مفتاح","سلك","تيار"],"سباكة":["سباك","تسريب","ماء","مياه","صرف","مجاري","حنفية","خلاط","انسداد","سدة","تسرب"],"تكييف وتبريد":["تكييف","مكيف","سبليت","فريون","ثلاج","تبريد","مبرد","برودة","فريزر","غرفة باردة"],"معدات المطبخ":["فرن","شواية","غاز","موقد","قلاية","خلاط","عجان","ماكينة","معدات","غسالة صحون","هود","شفاط"],"نجارة وأثاث":["باب","كرسي","طاولة","خزانة","دولاب","قفل","نجار","رف","شباك","مفصلة"],"نظافة ومكافحة":["حشر","صراصير","فئران","نمل","رائحة","نظافة","قوارض","مكافحة"],};
+const URG=["حريق","ماس","تسريب غاز","تسرب غاز","رائحة غاز","فيضان","غرق","توقف","معطل","لا يعمل","لا تعمل","خطر","شرر","دخان","عاجل","تالف","تعطل","انقطاع","فاسد"];
+function classify(t){t=String(t||"");let best="أخرى",n=0;for(const c in KW){const k=KW[c].filter(w=>t.includes(w)).length;if(k>n){n=k;best=c}}const u=URG.filter(w=>t.includes(w)).length;return{cat:best,pri:u>=2?"h":u==1?"h":"m",hit:n+u>0}}
+async function ask(p,json){let sm=null;try{sm=window.claude?await claude.use("sample"):null}catch(e){}if(!sm)return null;try{return json?await sm.json(p):(await sm(p)).text}catch(e){return null}}
+function hint(){const t=$("pr").value;if(t.length<6){$("ht").textContent="";return}const c=classify(t);if(!$("ct").dataset.m)$("ct").value=c.cat;if(!$("pp").dataset.m&&c.hit)$("pp").value=c.pri;$("ht").textContent=c.hit?"🤖 اقتراح تلقائي: "+c.cat+" — "+PRI[c.pri][0]:""}
+async function aiAnalyze(){const t=$("pr").value.trim();if(!t)return toast("اكتب المشكلة أولًا");toast("✨ جارٍ التحليل...");
+ const r=await ask(`حلّل طلب صيانة لفرع مطعم وأعد JSON فقط بدون أي نص آخر بالشكل {"cat":"","pri":"h|m|l","tips":""}. cat واحدة من: ${CAT.join("، ")}. pri: h عاجل (خطر/توقف تشغيل)، m عادي، l منخفض. tips: نصيحة أمان أو إجراء سريع قصير بالعربية للفرع قبل وصول الفني. المشكلة: ${t}`,true);
+ if(r&&CAT.includes(r.cat)){$("ct").value=r.cat;$("pp").value=PRI[r.pri]?r.pri:"m";$("ct").dataset.m=$("pp").dataset.m=1;$("ht").textContent="✨ "+(r.tips||"تم التحليل")}else{$("ct").dataset.m=$("pp").dataset.m="";hint();toast("تم التحليل المحلي")}}
+async function tip(id){const r=reqs.find(x=>x.id==id),e=$("t"+id);e.className="ai";e.textContent="✨ جارٍ التفكير...";
+ const a=await ask(`أنت فني صيانة خبير لفروع المطاعم. المشكلة: "${r.problem}" — التصنيف: ${r.cat||"غير محدد"} — سبب الفرع: ${r.cause||"غير مذكور"}. اكتب بالعربية وبإيجاز (5 أسطر كحد أقصى): السبب المحتمل، خطوات الفحص، الأدوات أو القطع المطلوبة، الوقت التقديري.`);
+ e.textContent=a||"الذكاء الاصطناعي غير متاح حاليًا."}
+function insights(list){const o=[],now=Date.now(),late=list.filter(r=>r.status=="pending"&&now-r.sentAt>864e5);
+ if(late.length)o.push(`⏰ ${late.length} طلب معلّق لأكثر من 24 ساعة — أقدمها: ${late.sort((a,b)=>a.sentAt-b.sentAt)[0].branch}`);
+ const g={};list.filter(r=>now-r.sentAt<2592e6).forEach(r=>{const k=r.branch+"|"+(r.cat||classify(r.problem).cat);g[k]=(g[k]||0)+1});
+ Object.entries(g).filter(([k,v])=>v>=3).sort((a,b)=>b[1]-a[1]).slice(0,2).forEach(([k,v])=>{const[b,c]=k.split("|");o.push(`🔁 تكرار: ${c} في ${b} (${v} مرات خلال 30 يومًا) — يُنصح بفحص جذري`)});
+ const u=list.filter(r=>r.status=="pending"&&r.pri=="h").length;if(u)o.push(`🚨 ${u} طلب عاجل بانتظار المعالجة`);
+ const nd=list.filter(r=>r.status=="notdone").length;if(nd)o.push(`⚠️ ${nd} طلب لم تتم صيانته — راجع الأسباب`);
+ return o.length?o.map(x=>`<div class="ins">${esc(x)}</div>`).join(""):'<div class="ins">✅ لا توجد تنبيهات — كل شيء على ما يرام</div>'}
+function chart(list){const c={};list.forEach(r=>{const k=r.cat||classify(r.problem).cat;c[k]=(c[k]||0)+1});const mx=Math.max(1,...Object.values(c));
+ return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar"><span style="width:110px">${CI[k]||"🔩"} ${esc(k)}</span><i style="width:${v/mx*55}%"></i><b>${v}</b></div>`).join("")||'<p class="m">لا بيانات</p>'}
+async function aiReport(){const b=bfilter?reqs.filter(r=>r.branch==bfilter):reqs,e=$("air");e.className="ai";e.textContent="✨ جارٍ إعداد التقرير...";
+ const d=b.slice(-60).map(r=>({فرع:r.branch,تصنيف:r.cat,حالة:ST[r.status][0],مشكلة:String(r.problem).slice(0,70),دقائق:r.doneAt?Math.round((r.doneAt-r.sentAt)/6e4):null}));
+ const a=await ask(`أنت محلل عمليات صيانة. حلّل هذه الطلبات واكتب بالعربية تقريرًا موجزًا (8 أسطر كحد أقصى): أبرز المشاكل المتكررة، الفروع الأكثر احتياجًا، ملاحظات عن سرعة المعالجة، وتوصيات وقائية عملية.\n${JSON.stringify(d)}`);
+ e.textContent=a||"الذكاء الاصطناعي غير متاح حاليًا."}
+const greet=()=>{const h=new Date().getHours();return h<12?"صباح الخير ☀️":h<18?"مساء الخير 🌤":"مساء النور 🌙"};
+function dash(l){
+ const all=reqs,now=Date.now(),t=l.length,dn=l.filter(r=>r.status=="done").length,p=t?Math.round(dn/t*100):0,C=2*Math.PI*44;
+ const ring=`<div class="ringw"><svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="44" fill="none" stroke="var(--b)" stroke-width="11"/><circle cx="55" cy="55" r="44" fill="none" stroke="var(--p)" stroke-width="11" stroke-linecap="round" stroke-dasharray="${C*p/100} ${C}"/></svg><div><b style="font-size:24px">${p}%</b><span class="m">الإنجاز</span></div></div>`;
+ const heat=BR.map(b=>{const pe=all.filter(r=>r.branch==b&&r.status=="pending"),lt=pe.some(r=>now-r.sentAt>864e5),c=lt?"late":pe.length?"warn":"okk";return `<div class="tile ${c} ${bfilter==b?"sel":""}" onclick="bfilter=bfilter=='${b}'?'':'${b}';render()">${b.replace(/^(كبده|حمسة) /,"")}<b>${pe.length||"✓"}</b></div>`}).join("");
+ const days=[...Array(7)].map((_,i)=>{const d0=new Date();d0.setHours(0,0,0,0);d0.setDate(d0.getDate()-6+i);const a=d0.getTime();return{n:l.filter(r=>r.sentAt>=a&&r.sentAt<a+864e5).length,lb:d0.toLocaleDateString("ar-SA",{weekday:"short"})}});
+ const mx=Math.max(1,...days.map(x=>x.n));
+ const wk=days.map(x=>`<div><b>${x.n}</b><i style="height:${6+x.n/mx*54}px"></i><span>${x.lb}</span></div>`).join("");
+ return stats(l)+`<div class="card"><div class="dash">${ring}<div><b>🗺 خريطة الفروع <span class="live"></span></b><div class="m">اضغط على فرع لعرض طلباته فقط<br>🟢 لا معلّق &nbsp;🟡 معلّق &nbsp;🔴 متأخر</div></div></div><div class="heat">${heat}</div></div><div class="card"><b>📈 نشاط آخر 7 أيام</b><div class="wk">${wk}</div></div>`}
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),2400)}
+function zoom(el){$("lbi").src=el.src;$("lb").style.display="flex"}
+
+let sync="wait",pend=false,canW=true;
+function typing(){
+  const e=document.activeElement,app=$("app");
+  if(e&&app.contains(e)&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)&&e.id!="sq"&&e.id!="pw"&&e.id!="bf")return true;
+  if($("pr")&&($("pr").value||($("im")&&$("im").files.length)))return true;
+  return !!document.querySelector('[id^="x"]:not(:empty)')
+}
+function softRender(){if(typing()){if(!pend)toast("🔄 توجد تحديثات جديدة");pend=true}else render()}
+document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!typing()){pend=false;render()}},400));
+function syncBar(){
+  const m={wait:["⏳ جارٍ الاتصال بالتخزين المشترك...","#e69500"],shared:["🟢 متصل — الطلبات مشتركة بين كل الأجهزة","#2e7d32"],ro:["👁 عرض فقط — لا تملك صلاحية إضافة أو تعديل الطلبات (اطلب صلاحية «مساهم»)","#e69500"],local:["🔴 لم يتم ربط قاعدة البيانات — الطلبات تُحفظ على هذا الجهاز فقط","#c62828"],err:["⚠️ تعذر الاتصال بقاعدة البيانات — تحقق من الإنترنت وقواعد Firestore","#c62828"]}[sync];
+  return `<div style="font-size:12px;padding:6px 10px;margin-bottom:10px;border-radius:10px;border:1px solid ${m[1]};color:${m[1]};text-align:center">${m[0]}</div>`
+}
+// ===== ضع إعدادات مشروع Firebase هنا (من Project settings > Your apps > Web) =====
+const FB={apiKey:"AIzaSyBBON0caMpW8zd8ZIOS8qNs4eynC1jRvT0",authDomain:"hobe-bb89a.firebaseapp.com",projectId:"hobe-bb89a",storageBucket:"hobe-bb89a.firebasestorage.app",messagingSenderId:"871978810851",appId:"1:871978810851:web:9616db8ab3d8693b3e74d6"};
+// =================================================================================
+async function init(){
+  render();
+  if(FB.projectId&&window.firebase){
+    try{
+      firebase.initializeApp(FB);col=firebase.firestore().collection("requests");sync="shared";
+      col.onSnapshot(s=>{reqs=s.docs.map(d=>({...d.data(),id:d.id}));softRender()},()=>{sync="err";render()});
+    }catch(e){col=null;sync="err"}
+    render()
+  }else{
+    sync="local";
+    try{reqs=JSON.parse(localStorage.getItem("reqs")||"[]")}catch(e){reqs=[]}render()
+  }
+}
+async function save(r){
+  if(col){await col.doc(r.id).set(r)}
+  else{reqs=reqs.filter(x=>x.id!==r.id).concat(r);try{localStorage.setItem("reqs",JSON.stringify(reqs))}catch(e){}render()}
+}
+function shrink(file){return new Promise(res=>{if(!file)return res("");const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,560/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.55))};im.onerror=()=>res("");im.src=fr.result};fr.readAsDataURL(file)})}
+
+function hero(title,sub,out){return `<div class="hero"><div><h1>${title}</h1><small>${sub}</small></div>${out?`<button onclick="who=null;filter='all';bfilter='';q='';render()">خروج</button>`:""}</div>`}
+function stats(list){const c=s=>list.filter(r=>r.status==s).length;return `<div class="stats"><div class="st"><b>${list.length}</b><span>الإجمالي</span></div><div class="st"><b style="color:var(--wr)">${c("pending")}</b><span>قيد الانتظار</span></div><div class="st"><b style="color:var(--ok)">${c("done")}</b><span>تمت</span></div><div class="st"><b style="color:var(--no)">${c("notdone")}</b><span>لم تتم</span></div></div>`}
+function tabs(l){const c=k=>k=="all"?l.length:l.filter(r=>r.status==k).length;return `<div class="tabs">${[["all","📋 الكل"],["pending","⏳ قيد الانتظار"],["done","✅ تمت"],["notdone","⚠️ لم تتم"]].map(([k,t])=>`<button class="${filter==k?"":"g"}" onclick="filter='${k}';render()">${t}<b>${c(k)}</b></button>`).join("")}</div>`}
+function empty(){return '<div class="empty"><b>📭</b>لا توجد طلبات هنا<br><span>ستظهر الطلبات فور إضافتها</span></div>'}
+function steps(r){const p=r.status=="pending";return `<div class="steps"><div class="on">📨 أُرسل</div><div class="${p?"on":"ok"}">🔧 قيد المعالجة</div><div class="${p?"":r.status=="done"?"ok":"no"}">${p?"🏁 النتيجة":r.status=="done"?"✅ تمت الصيانة":"⚠️ لم تتم"}</div></div>`}
+
+function render(){render0();$("app").insertAdjacentHTML("afterbegin",syncBar())}
+function render0(){
+  const a=$("app"),keep=document.activeElement&&document.activeElement.id=="sq";
+  if(!who){
+    const pend=b=>reqs.filter(r=>r.branch==b&&r.status=="pending").length;
+    a.innerHTML=hero("🔧 نظام صيانة الفروع","إدارة طلبات الصيانة وتتبعها بسهولة")+`<div class="guide"><div><span>📝</span>اكتب المشكلة</div><div><span>📸</span>أرفق صورة</div><div><span>🔧</span>تابع الإصلاح</div></div>`+`<div class="card"><b>🏪 اختر فرعك للدخول</b><div class="m">لإرسال طلب صيانة ومتابعة حالته</div><div class="grid" style="margin-top:10px">${BR.map((b,i)=>`<button class="g" onclick="who={t:'b',n:BR[${i}]};render()">${b}${pend(b)?` <span class="tag w">${pend(b)}</span>`:""}</button>`).join("")}</div></div>
+    <div class="card"><b>🛠 دخول مسؤول الصيانة</b><div class="m">لمعالجة الطلبات والاطلاع على التقارير</div><input id="pw" type="password" placeholder="كلمة المرور" onkeydown="if(event.key=='Enter')login()"><button onclick="login()" style="width:100%">دخول</button><div id="err" class="m" style="color:var(--no)"></div></div>`;return}
+  if(who.t=="b"){
+    const mine=reqs.filter(r=>r.branch==who.n).sort((x,y)=>y.sentAt-x.sentAt);
+    const list=mine.filter(r=>filter=="all"||r.status==filter);
+    a.innerHTML=hero("🏪 "+who.n,"لوحة الفرع",1)+stats(mine)+`<div class="card"><b>📝 طلب صيانة جديد</b><div class="m">اكتب المشكلة بوضوح وأرفق صورة إن أمكن — يصل الطلب للمسؤول فورًا</div>
+    <div class="row"><select id="ct" onchange="this.dataset.m=1">${CAT.map(c=>`<option>${c}</option>`).join("")}</select><select id="pp" onchange="this.dataset.m=1"><option value="m">أولوية: عادي</option><option value="h">أولوية: عاجل</option><option value="l">أولوية: منخفض</option></select></div>
+    <textarea id="pr" rows="3" placeholder="ما هي المشكلة؟" oninput="hint()"></textarea><div id="ht" class="m"></div>
+    <textarea id="ca" rows="2" placeholder="سبب المشكلة (إن وجد)"></textarea>
+    <input id="im" type="file" accept="image/*" capture="environment" onchange="prev(this)"><img id="pv" class="p" style="display:none">
+    <div class="row" style="margin-top:6px"><button class="g" onclick="aiAnalyze()">✨ تحليل ذكي</button><button id="sb" onclick="send()">إرسال الطلب</button></div></div><h3>📋 طلباتي</h3>`+tabs(mine)+(list.map(r=>card(r)).join("")||empty());
+  }else{
+    const base=reqs.filter(r=>!bfilter||r.branch==bfilter);
+    const all=base.filter(r=>(filter=="all"||r.status==filter)&&(!q||(r.problem+r.branch+(r.cat||"")).includes(q))).sort((x,y)=>(x.status=="pending"?0:1)-(y.status=="pending"?0:1)||({h:0,m:1,l:2}[x.pri||"m"]-{h:0,m:1,l:2}[y.pri||"m"])||y.sentAt-x.sentAt);
+    const dn=base.filter(r=>r.doneAt&&r.status!="pending"),avg=dn.length?dn.reduce((s,r)=>s+r.doneAt-r.sentAt,0)/dn.length:0;
+    a.innerHTML=hero("🛠 لوحة مسؤول الصيانة",greet()+" • متوسط زمن المعالجة: "+dur(avg),1)+dash(base)+`<div class="card"><b>💡 تنبيهات ذكية</b>${insights(base)}<div style="margin-top:10px"><b>📊 توزيع المشاكل</b>${chart(base)}</div><button class="g" onclick="aiReport()" style="width:100%;margin-top:8px">✨ تقرير ذكي بالذكاء الاصطناعي</button><div id="air"></div></div><div class="row"><select id="bf" onchange="bfilter=this.value;render()"><option value="">كل الفروع</option>${BR.map(b=>`<option ${bfilter==b?"selected":""}>${b}</option>`).join("")}</select><input id="sq" placeholder="🔍 بحث..." value="${esc(q)}" oninput="q=this.value;render()"></div>`+`<h3>📋 الطلبات (${all.length})</h3>`+tabs(base)+`<button class="g" onclick="csv()" style="width:100%;margin-bottom:10px">⬇️ تصدير Excel (CSV)</button>`+(all.map(r=>card(r,1)).join("")||empty());
+    if(keep){const s=$("sq");s.focus();s.setSelectionRange(s.value.length,s.value.length)}
+  }
+}
+function prev(i){const f=i.files[0],p=$("pv");if(!f){p.style.display="none";return}p.src=URL.createObjectURL(f);p.style.display="block"}
+function card(r,m){
+  const s=ST[r.status],pr=PRI[r.pri||"m"],im=u=>safeImg(u)?`<img class="p" onclick="zoom(this)" src="${safeImg(u)}">`:"";
+  return `<div class="card s-${r.status}${r.status=="pending"&&r.pri=="h"?" urg":""}"><div class="top"><b>${esc(r.branch)}<span class="pri ${pr[1]}">${pr[0]}</span></b><span>${r.status=="pending"&&Date.now()-r.sentAt>864e5?'<span class="tag late">متأخر</span> ':""}<span class="tag ${s[1]}">${s[0]}</span></span></div>
+  ${r.cat?`<span class="chip">${CI[r.cat]||"🏷"} ${esc(r.cat)}</span>`:""}${steps(r)}
+  <p><b>المشكلة:</b> ${esc(r.problem)}</p>${r.cause?`<p><b>السبب:</b> ${esc(r.cause)}</p>`:""}${im(r.img)}
+  <p class="m">أُرسل: ${fmt(r.sentAt)}<br>تمت المعالجة: ${fmt(r.doneAt)}${r.doneAt?` — استغرقت ${dur(r.doneAt-r.sentAt)}`:` — منذ ${dur(Date.now()-r.sentAt)}`}</p>
+  ${r.status!="pending"?`<div class="fix"><p><b>سبب المشكلة (الصيانة):</b> ${esc(r.fixCause)}</p>${r.note?`<p><b>ملاحظة:</b> ${esc(r.note)}</p>`:""}${im(r.fixImg)}</div>`:""}
+  ${m?(r.status=="pending"?`<button class="g" style="width:100%;margin-top:8px" onclick="tip('${r.id}')">💡 اقتراح ذكي للحل</button><div id="t${r.id}"></div><div id="f${r.id}"><select id="s${r.id}" onchange="sel('${r.id}')"><option value="">— اختر الحالة —</option><option value="done">إتمام المشكلة</option><option value="notdone">عدم إتمام المشكلة</option></select><div id="x${r.id}"></div></div>`:`<button onclick="pdf('${r.id}')" style="width:100%;margin-top:8px">📄 تحويل إلى PDF وإرسال</button>`):""}</div>`;
+}
+function login(){if($("pw").value===PASS){who={t:"m"};render()}else $("err").textContent="كلمة المرور غير صحيحة"}
+async function send(){
+  const p=$("pr").value.trim();if(!p)return toast("اكتب المشكلة أولًا");
+  if(busy)return;busy=true;$("sb").disabled=true;$("sb").textContent="جارٍ الإرسال...";
+  try{
+    const img=await shrink($("im").files[0]);
+    await save({id:"r"+Date.now()+Math.random().toString(36).slice(2,6),branch:who.n,cat:$("ct").value,pri:$("pp").value,problem:p,cause:$("ca").value.trim(),img,status:"pending",sentAt:Date.now(),doneAt:0});
+    toast("✅ تم إرسال الطلب");render();
+  }catch(e){toast("تعذر الإرسال، حاول مجددًا")}
+  busy=false;
+}
+function sel(id){
+  const v=$("s"+id).value,x=$("x"+id);
+  if(!v){x.innerHTML="";return}
+  x.innerHTML=`<textarea id="c${id}" rows="2" placeholder="${v=="done"?"سبب المشكلة":"سبب عدم الإتمام"}"></textarea>${v=="done"?'<label class="m">صورة بعد الإصلاح</label>':""}<input id="i${id}" type="file" accept="image/*" capture="environment"><textarea id="n${id}" rows="2" placeholder="ملاحظات (اختياري)"></textarea><button class="${v=="done"?"ok":"no"}" style="width:100%" onclick="fin('${id}','${v}')">حفظ</button>`;
+}
+async function fin(id,v){
+  const r=reqs.find(x=>x.id==id),c=$("c"+id).value.trim();
+  if(!c)return toast("اكتب السبب");
+  try{const fixImg=await shrink($("i"+id).files[0]);
+  await save({...r,status:v,fixCause:c,note:$("n"+id).value.trim(),fixImg,doneAt:Date.now()});toast("تم الحفظ ✅")}catch(e){toast("تعذر الحفظ")}
+}
+async function out(blob,name){
+  let dl=null;try{dl=window.claude?await claude.use("downloads"):null}catch(e){}
+  if(dl){await dl.save({filename:name,data:blob})}
+  else{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click()}
+}
+function csv(){
+  const rows=[["الفرع","التصنيف","الأولوية","المشكلة","الحالة","وقت الإرسال","وقت المعالجة","سبب الصيانة","ملاحظات"]].concat(reqs.filter(r=>!bfilter||r.branch==bfilter).map(r=>[r.branch,r.cat||"",PRI[r.pri||"m"][0],r.problem,ST[r.status][0],fmt(r.sentAt),fmt(r.doneAt),r.fixCause||"",r.note||""]));
+  const t="\ufeff"+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+  out(new Blob([t],{type:"text/csv;charset=utf-8"}),"طلبات-الصيانة.csv").then(()=>toast("تم التصدير")).catch(()=>{})
+}
+async function pdf(id){
+  const r=reqs.find(x=>x.id==id),s=ST[r.status][0],im=(u,t)=>safeImg(u)?`<p><b>${t}</b></p><img src="${safeImg(u)}" style="max-width:100%;max-height:240px">`:"";
+  toast("جارٍ إنشاء التقرير...");
+  $("rep").innerHTML=`<h2 style="text-align:center;border-bottom:3px solid #f5b800;padding-bottom:8px;margin-top:0">تقرير صيانة</h2>
+  <p><b>الفرع:</b> ${esc(r.branch)} &nbsp;|&nbsp; <b>التصنيف:</b> ${esc(r.cat)||"—"} &nbsp;|&nbsp; <b>الأولوية:</b> ${PRI[r.pri||"m"][0]}</p><p><b>الحالة:</b> ${s}</p><p><b>المشكلة:</b> ${esc(r.problem)}</p><p><b>السبب (الفرع):</b> ${esc(r.cause)||"—"}</p>${im(r.img,"صورة المشكلة")}
+  <p><b>وقت إرسال الطلب:</b> ${fmt(r.sentAt)}</p><p><b>وقت المعالجة:</b> ${fmt(r.doneAt)} (المدة: ${dur(r.doneAt-r.sentAt)})</p>
+  <p><b>سبب المشكلة (الصيانة):</b> ${esc(r.fixCause)}</p><p><b>ملاحظات:</b> ${esc(r.note)||"—"}</p>${im(r.fixImg,"صورة بعد الصيانة")}
+  <div style="text-align:center;font-size:9px;color:#888;margin-top:18px;border-top:1px solid #ddd;padding-top:6px">ابتكار وتطوير : عبدالإله فقيه</div>`;
+  try{
+    const cv=await html2canvas($("rep"),{scale:1.5,backgroundColor:"#fff"});
+    const {jsPDF}=window.jspdf,d=new jsPDF("p","mm","a4"),w=190,h=cv.height*w/cv.width;
+    d.addImage(cv.toDataURL("image/jpeg",.85),"JPEG",10,10,w,Math.min(h,277));
+    const blob=d.output("blob"),name="صيانة-"+r.branch+".pdf";
+    await out(blob,name);
+    const f=new File([blob],name,{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],title:name}).catch(()=>{});
+  }catch(e){toast("تعذر إنشاء PDF")}
+}
+init();
+</script></body></html>
